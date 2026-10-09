@@ -348,269 +348,7 @@ function createCheckpoints() {
   refreshCheckpointGraphics();
 }
 
-function refreshCheckpointGraphics() {
-  checkpoints.forEach(cp => {
-    const state = checkpointState(cp.id);
-
-    const el =
-      document.querySelector(
-        `[data-cp="${cp.id}"]`
-      );
-
-    if (!el) return;
-
-    el.className =
-      `checkpoint ${state}`;
-
-    el.querySelector("img").src =
-      assetFor(cp.id, state);
-  });
-
-  const f =
-    document.querySelector(
-      '[data-cp="finish"]'
-    );
-
-  if (f) {
-    const state =
-      game.completedCheckpoints.length === 5
-        ? "active"
-        : "locked";
-
-    f.className =
-      `checkpoint ${state}`;
-
-    f.querySelector("img").src =
-      `assets/checkpoints/finish-${state}.png`;
-  }
-}
-
-// =====================================================
-// HUD
-// =====================================================
-
-function updateHUD() {
-  scoreEl.textContent = game.score;
-
-  progressEl.textContent =
-    `${game.completedCheckpoints.length}/5`;
-}
-
-// =====================================================
-// NEAREST CHECKPOINT
-// =====================================================
-
-function getNearestTarget() {
-  let nearest = null;
-  let best = Infinity;
-
-  [...checkpoints, finish].forEach(cp => {
-    const d =
-      Math.hypot(
-        game.player.x - cp.x,
-        game.player.y - cp.y
-      );
-
-    if (d < best) {
-      best = d;
-      nearest = cp;
-    }
-  });
-
-  return {
-    target: nearest,
-    distance: best
-  };
-}
-
-// =====================================================
-// INTERACTION
-// =====================================================
-
-function handleInteraction() {
-  const {
-    target,
-    distance
-  } = getNearestTarget();
-
-  if (!target || distance > 92) {
-    interaction.classList.add("hidden");
-    interactBtn.classList.add("hidden");
-    return;
-  }
-
-  interaction.classList.remove("hidden");
-  interactBtn.classList.remove("hidden");
-
-  if (target.id === "finish") {
-    if (
-      game.completedCheckpoints.length === 5
-    ) {
-      interaction.textContent =
-        "🏆 Masuk ke PENAMAT";
-
-      interactBtn.textContent =
-        "🏆 PENAMAT";
-    }
-
-    else {
-      interaction.textContent =
-        "🔒 Selesaikan semua checkpoint dahulu!";
-
-      interactBtn.classList.add("hidden");
-    }
-
-    return;
-  }
-
-  const state =
-    checkpointState(target.id);
-
-  if (state === "locked") {
-    interaction.textContent =
-      "🔒 Selesaikan checkpoint sebelumnya dahulu!";
-
-    interactBtn.classList.add("hidden");
-  }
-
-  else if (state === "completed") {
-    interaction.textContent =
-      `✓ ${target.label} telah selesai`;
-
-    interactBtn.classList.add("hidden");
-  }
-
-  else {
-    interaction.textContent =
-      `✨ ${target.label} — masuk misi`;
-
-    interactBtn.textContent =
-      "✨ MASUK MISI";
-  }
-}
-
-function interact() {
-  const {
-    target,
-    distance
-  } = getNearestTarget();
-
-  if (!target || distance > 92) return;
-
-  if (target.id === "finish") {
-    if (
-      game.completedCheckpoints.length === 5
-    ) {
-      showResults();
-    }
-
-    return;
-  }
-
-  if (
-    checkpointState(target.id) !== "active"
-  ) {
-    return;
-  }
-
-  game.modalCheckpoint = target.id;
-
-  modalTitle.textContent =
-    `Misi ${target.id}`;
-
-  modal.classList.remove("hidden");
-
-  keys.clear();
-
-  openCheckpoint(target.id);
-}
-
-// =====================================================
-// CLOSE CHECKPOINT
-// =====================================================
-
-document
-  .querySelector("#closeModal")
-  .addEventListener("click", () => {
-    stopSpeech();
-    stopRecognition(true);
-
-    modal.classList.add("hidden");
-  });
-
-// =====================================================
-// CHECKPOINT DATA
-// =====================================================
-
-let activityIndex = 0;
-
-let recognition = null;
-let recognitionStarting = false;
-let isRecording = false;
-
-let finalTranscript = "";
-let interimTranscript = "";
-
-const CP = {
-
-  1: [
-    {
-      audio: "assets/audio/cp1-1.m4a",
-      options: ["🥕", "🍎", "🌽"],
-      correct: "🥕"
-    },
-
-    {
-      audio: "assets/audio/cp1-2.m4a",
-      options: ["✏️", "📏", "✂️"],
-      correct: "✏️"
-    }
-  ],
-
-  2: [
-    {
-      audio: "assets/audio/cp2-1.m4a",
-
-      items: [
-        ["🔪", "pisau"],
-        ["🥄", "sudu"],
-        ["🍴", "garpu"]
-      ],
-
-      target: ["🐟", "ikan"],
-      correct: "pisau"
-    },
-
-    {
-      audio: "assets/audio/cp2-2.m4a",
-
-      items: [
-        ["🧂", "garam"],
-        ["🥄", "sudu"],
-        ["🔪", "pisau"]
-      ],
-
-      target: ["🥣", "mangkuk"],
-      correct: "garam"
-    }
-  ],
-
-  3: [
-    {
-      audio: "assets/audio/cp3-1.m4a",
-      keywords: ["tiga", "3"]
-    },
-
-    {
-      audio: "assets/audio/cp3-2.m4a",
-      keywords: ["biru"]
-    }
-  ],
-
-  4: [
-    {
-      audio: "assets/audio/cp4-1.m4a",
-      any: ["ya", "boleh", "bantu"]
+"ya", "boleh", "bantu"]
     },
 
     {
@@ -627,7 +365,6 @@ const CP = {
   5: [
     {
       audio: "assets/audio/cp5-1.m4a",
-
       all: [
         "saya",
         "suka",
@@ -638,7 +375,6 @@ const CP = {
 
     {
       audio: "assets/audio/cp5-2.m4a",
-
       all: [
         "kami",
         "bermain",
@@ -655,57 +391,40 @@ const CP = {
 // =====================================================
 
 const checkpointInstructions = {
-
   1: {
     icon: "👂",
-
-    title:
-      "Dengar dan Pilih Jawapan",
-
+    title: "Dengar dan Pilih Jawapan",
     text:
       'Dengar audio dengan <strong>teliti</strong>, kemudian <strong>pilih jawapan yang betul</strong>.'
   },
 
   2: {
     icon: "👂",
-
-    title:
-      "Dengar dan Lakukan",
-
+    title: "Dengar dan Lakukan",
     text:
       'Dengar arahan dengan <strong>teliti</strong>, kemudian <strong>seret objek yang betul ke tempat yang sesuai</strong>.'
   },
 
   3: {
     icon: "🎤",
-
-    title:
-      "Dengar dan Berbual",
-
+    title: "Dengar dan Berbual",
     text:
       'Dengar dengan <strong>teliti</strong>, kemudian <strong>berikan jawapan secara lisan</strong>.'
   },
 
   4: {
     icon: "🗣️",
-
-    title:
-      "Dengar dan Berikan Respons",
-
+    title: "Dengar dan Berikan Respons",
     text:
       'Dengar dengan <strong>teliti</strong>, kemudian <strong>berikan respons yang sesuai</strong>.'
   },
 
   5: {
     icon: "🎙️",
-
-    title:
-      "Dengar dan Sebut Semula",
-
+    title: "Dengar dan Sebut Semula",
     text:
       'Dengar ayat dengan <strong>teliti</strong>, kemudian <strong>sebut semula ayat yang didengar</strong>.'
   }
-
 };
 
 // =====================================================
@@ -726,11 +445,9 @@ function openCheckpoint(id) {
 // =====================================================
 
 function showCheckpointInstruction(id) {
-  const info =
-    checkpointInstructions[id];
+  const info = checkpointInstructions[id];
 
-  modalTitle.textContent =
-    `Misi ${id}`;
+  modalTitle.textContent = `Misi ${id}`;
 
   activityArea.innerHTML = `
     <div class="instruction-screen">
@@ -739,32 +456,24 @@ function showCheckpointInstruction(id) {
         ${info.icon}
       </div>
 
-      <h3>
-        ${info.title}
-      </h3>
+      <h3>${info.title}</h3>
 
-      <p>
-        ${info.text}
-      </p>
+      <p>${info.text}</p>
 
       <div class="activity-actions">
-
         <button
           id="instructionDoneBtn"
           class="primary-btn"
         >
           ✅ SAYA SUDAH FAHAM
         </button>
-
       </div>
 
     </div>
   `;
 
   const instructionDoneBtn =
-    document.querySelector(
-      "#instructionDoneBtn"
-    );
+    document.querySelector("#instructionDoneBtn");
 
   instructionDoneBtn.onclick = () => {
     renderActivity(id);
@@ -776,7 +485,6 @@ function showCheckpointInstruction(id) {
 // =====================================================
 
 function shell(title, total, body) {
-
   const missionNumber =
     game.modalCheckpoint || "";
 
@@ -794,7 +502,6 @@ function shell(title, total, body) {
   );
 
   activityArea.innerHTML = `
-
     <div class="question-page">
 
       <div class="activity-mission">
@@ -827,11 +534,8 @@ function shell(title, total, body) {
 function renderActivity(id) {
   stopSpeech();
 
-  const d =
-    CP[id][activityIndex];
-
-  const total =
-    CP[id].length;
+  const d = CP[id][activityIndex];
+  const total = CP[id].length;
 
   if (id === 1) {
     return cp1(d, total);
@@ -844,13 +548,11 @@ function renderActivity(id) {
   renderVoice(
     d,
     total,
-
     id === 3
       ? "Dengar dan Berbual"
       : id === 4
         ? "Dengar dan Berikan Respons"
         : "Dengar dan Sebut Semula",
-
     id === 4,
     id === 5
   );
@@ -867,22 +569,17 @@ let currentAudio = null;
 // =====================================================
 
 function setAudioPlaybackMode() {
-
   try {
-
     if (
       navigator.audioSession &&
       "type" in navigator.audioSession
     ) {
-
       navigator.audioSession.type = "playback";
-
     }
-
   } catch (e) {
-
-    console.log("Audio playback mode tidak tersedia.");
-
+    console.log(
+      "Audio playback mode tidak tersedia."
+    );
   }
 }
 
@@ -892,10 +589,13 @@ function setAudioRecordingMode() {
       navigator.audioSession &&
       "type" in navigator.audioSession
     ) {
-    navigator.audioSession.type = "playback";
+      navigator.audioSession.type =
+        "play-and-record";
     }
   } catch (e) {
-    console.log("Audio recording mode tidak tersedia.");
+    console.log(
+      "Audio recording mode tidak tersedia."
+    );
   }
 }
 
@@ -904,46 +604,37 @@ function setAudioRecordingMode() {
 // =====================================================
 
 function speak(src) {
-
   stopSpeech();
-
   setAudioPlaybackMode();
 
-  currentAudio = new Audio(src);
+  const audio = new Audio(src);
+  currentAudio = audio;
 
-  currentAudio.muted = false;
-  currentAudio.volume = 1.0;
-  currentAudio.preload = "auto";
+  audio.preload = "auto";
+  audio.muted = false;
+  audio.volume = 1;
 
-  currentAudio.addEventListener(
-    "canplaythrough",
+  // Main terus apabila pengguna menekan butang.
+  const promise = audio.play();
 
-    function playAudio() {
+  if (
+    promise &&
+    typeof promise.catch === "function"
+  ) {
+    promise.catch(err => {
+      if (currentAudio === audio) {
+        console.warn(
+          "Audio tidak dapat dimainkan:",
+          err
+        );
 
-      if (!currentAudio) return;
-
-      setAudioPlaybackMode();
-
-      currentAudio.muted = false;
-      currentAudio.volume = 1.0;
-
-      currentAudio
-        .play()
-        .catch(() => {
-
-          fb(
-            "🔊 Audio tidak dapat dimainkan. Tekan DENGAR AUDIO sekali lagi.",
-            0
-          );
-
-        });
-
-    },
-
-    { once: true }
-  );
-
-  currentAudio.load();
+        fb(
+          "🔊 Audio tidak dapat dimainkan. Tekan DENGAR AUDIO sekali lagi.",
+          0
+        );
+      }
+    });
+  }
 }
 
 // =====================================================
@@ -951,15 +642,11 @@ function speak(src) {
 // =====================================================
 
 function stopSpeech() {
-
   if (currentAudio) {
-
     currentAudio.pause();
     currentAudio.currentTime = 0;
     currentAudio = null;
-
   }
-
 }
 
 // =====================================================
@@ -967,7 +654,6 @@ function stopSpeech() {
 // =====================================================
 
 function fb(text, goodFeedback) {
-
   const el =
     document.querySelector("#feedback");
 
@@ -976,15 +662,10 @@ function fb(text, goodFeedback) {
   el.textContent = text;
 
   el.className =
-    `feedback ${
-      goodFeedback
-        ? "good"
-        : "bad"
-    }`;
+    `feedback ${goodFeedback ? "good" : "bad"}`;
 }
 
 function good() {
-
   const messages = [
     "⭐ Hebat! Jawapan kamu betul!",
     "🎉 Tahniah! Kamu berjaya!",
@@ -993,15 +674,11 @@ function good() {
   ];
 
   return messages[
-    Math.floor(
-      Math.random() *
-      messages.length
-    )
+    Math.floor(Math.random() * messages.length)
   ];
 }
 
 function bad() {
-
   const messages = [
     "💪 Hampir betul. Cuba sekali lagi!",
     "👂 Dengar semula dengan teliti.",
@@ -1010,10 +687,7 @@ function bad() {
   ];
 
   return messages[
-    Math.floor(
-      Math.random() *
-      messages.length
-    )
+    Math.floor(Math.random() * messages.length)
   ];
 }
 
@@ -1022,39 +696,28 @@ function bad() {
 // =====================================================
 
 function cp1(d, total) {
-
   shell(
     "Dengar dan Pilih Jawapan",
     total,
     `
       <div class="activity-actions">
-
         <button
           class="audio-btn"
           id="listenBtn"
         >
           🔊 DENGAR AUDIO
         </button>
-
       </div>
 
       <div class="picture-options">
-
-        ${
-          d.options
-            .map(
-              option => `
-                <button
-                  class="picture-option"
-                  data-a="${option}"
-                >
-                  ${option}
-                </button>
-              `
-            )
-            .join("")
-        }
-
+        ${d.options.map(option => `
+          <button
+            class="picture-option"
+            data-a="${option}"
+          >
+            ${option}
+          </button>
+        `).join("")}
       </div>
     `
   );
@@ -1069,23 +732,12 @@ function cp1(d, total) {
   document
     .querySelectorAll(".picture-option")
     .forEach(button => {
-
       button.onclick = () => {
-
-        if (
-          button.dataset.a ===
-          d.correct
-        ) {
-
+        if (button.dataset.a === d.correct) {
           fb(good(), 1);
           advance();
-
-        }
-
-        else {
-
+        } else {
           fb(bad(), 0);
-
         }
       };
     });
@@ -1096,42 +748,30 @@ function cp1(d, total) {
 // =====================================================
 
 function cp2(d, total) {
-
   shell(
     "Dengar dan Lakukan",
     total,
     `
       <div class="activity-actions">
-
         <button
           class="audio-btn"
           id="listenBtn"
         >
           🔊 DENGAR AUDIO
         </button>
-
       </div>
 
       <div class="kitchen">
-
         <div class="drag-zone">
-
-          ${
-            d.items
-              .map(
-                item => `
-                  <div
-                    class="drag-item"
-                    draggable="true"
-                    data-value="${item[1]}"
-                  >
-                    ${item[0]}
-                  </div>
-                `
-              )
-              .join("")
-          }
-
+          ${d.items.map(item => `
+            <div
+              class="drag-item"
+              draggable="true"
+              data-value="${item[1]}"
+            >
+              ${item[0]}
+            </div>
+          `).join("")}
         </div>
 
         <div
@@ -1141,7 +781,6 @@ function cp2(d, total) {
         >
           ${d.target[0]}
         </div>
-
       </div>
     `
   );
@@ -1149,146 +788,85 @@ function cp2(d, total) {
   const listenBtn =
     document.querySelector("#listenBtn");
 
-  listenBtn.onclick = () =>
-    speak(d.audio);
+  listenBtn.onclick = () => speak(d.audio);
 
   const items =
-    document.querySelectorAll(
-      ".drag-item"
-    );
+    document.querySelectorAll(".drag-item");
 
   const zone =
-    document.querySelector(
-      "#dropZone"
-    );
+    document.querySelector("#dropZone");
 
   let selected = null;
 
   items.forEach(item => {
+    item.addEventListener("dragstart", e => {
+      e.dataTransfer.setData(
+        "text/plain",
+        item.dataset.value
+      );
+    });
 
-    item.addEventListener(
-      "dragstart",
-      e => {
+    item.addEventListener("click", () => {
+      items.forEach(x =>
+        x.classList.remove("selected")
+      );
 
-        e.dataTransfer.setData(
-          "text/plain",
-          item.dataset.value
-        );
-
-      }
-    );
-
-    item.addEventListener(
-      "click",
-      () => {
-
-        items.forEach(x =>
-          x.classList.remove(
-            "selected"
-          )
-        );
-
-        item.classList.add(
-          "selected"
-        );
-
-        selected =
-          item.dataset.value;
-      }
-    );
+      item.classList.add("selected");
+      selected = item.dataset.value;
+    });
 
     item.addEventListener(
       "touchend",
       e => {
-
         e.preventDefault();
 
         items.forEach(x =>
-          x.classList.remove(
-            "selected"
-          )
+          x.classList.remove("selected")
         );
 
-        item.classList.add(
-          "selected"
-        );
-
-        selected =
-          item.dataset.value;
+        item.classList.add("selected");
+        selected = item.dataset.value;
       },
-      {
-        passive: false
-      }
+      { passive: false }
     );
-
   });
 
-  zone.addEventListener(
-    "dragover",
-    e => {
-      e.preventDefault();
+  zone.addEventListener("dragover", e => {
+    e.preventDefault();
+  });
+
+  zone.addEventListener("drop", e => {
+    e.preventDefault();
+
+    const value =
+      e.dataTransfer.getData("text/plain");
+
+    checkDrop(value);
+  });
+
+  zone.addEventListener("click", () => {
+    if (selected) {
+      checkDrop(selected);
     }
-  );
-
-  zone.addEventListener(
-    "drop",
-    e => {
-
-      e.preventDefault();
-
-      const value =
-        e.dataTransfer.getData(
-          "text/plain"
-        );
-
-      checkDrop(value);
-
-    }
-  );
-
-  zone.addEventListener(
-    "click",
-    () => {
-
-      if (selected) {
-        checkDrop(selected);
-      }
-
-    }
-  );
+  });
 
   zone.addEventListener(
     "touchend",
     e => {
-
       if (!selected) return;
 
       e.preventDefault();
-
       checkDrop(selected);
-
     },
-    {
-      passive: false
-    }
+    { passive: false }
   );
 
   function checkDrop(value) {
-
-    if (
-      value ===
-      d.correct
-    ) {
-
+    if (value === d.correct) {
       fb(good(), 1);
       advance();
-
-    }
-
-    else {
-
+    } else {
       fb(bad(), 0);
-
     }
   }
 }
@@ -1298,22 +876,12 @@ function cp2(d, total) {
 // =====================================================
 
 function norm(text = "") {
-
   return text
     .toLowerCase()
     .normalize("NFD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      ""
-    )
-    .replace(
-      /[^a-z0-9\s]/g,
-      " "
-    )
-    .replace(
-      /\s+/g,
-      " "
-    )
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -1329,7 +897,6 @@ function renderVoice(
   isCP4 = false,
   isCP5 = false
 ) {
-
   const audioText =
     isCP5
       ? "🔊 DENGAR AYAT"
@@ -1340,25 +907,19 @@ function renderVoice(
     total,
     `
       <div class="activity-actions">
-
         <button
           class="audio-btn"
           id="listenBtn"
         >
           ${audioText}
         </button>
-
       </div>
 
-      ${
-        isCP4
-          ? `
-            <div class="goods">
-              🧂 🧴 🥫
-            </div>
-          `
-          : ""
-      }
+      ${isCP4 ? `
+        <div class="goods">
+          🧂 🧴 🥫
+        </div>
+      ` : ""}
 
       <div
         id="micIndicator"
@@ -1368,14 +929,12 @@ function renderVoice(
       </div>
 
       <div class="activity-actions">
-
         <button
           class="record-btn"
           id="recordBtn"
         >
           🎙️ MULA RAKAM
         </button>
-
       </div>
 
       <div
@@ -1393,32 +952,22 @@ function renderVoice(
   );
 
   const listenBtn =
-    document.querySelector(
-      "#listenBtn"
-    );
+    document.querySelector("#listenBtn");
 
   const recordBtn =
-    document.querySelector(
-      "#recordBtn"
-    );
+    document.querySelector("#recordBtn");
 
   listenBtn.onclick = () => {
     speak(d.audio);
   };
 
   recordBtn.onclick = () => {
-
     if (isRecording) {
       stopRecognition(false);
       return;
     }
 
-    startRecognition(
-      d,
-      isCP4,
-      isCP5
-    );
-
+    startRecognition(d, isCP4, isCP5);
   };
 }
 
@@ -1427,7 +976,6 @@ function renderVoice(
 // =====================================================
 
 function getSpeechRecognition() {
-
   return (
     window.SpeechRecognition ||
     window.webkitSpeechRecognition ||
@@ -1435,20 +983,13 @@ function getSpeechRecognition() {
   );
 }
 
-function setMicIndicator(
-  active,
-  text
-) {
-
+function setMicIndicator(active, text) {
   const indicator =
-    document.querySelector(
-      "#micIndicator"
-    );
+    document.querySelector("#micIndicator");
 
   if (!indicator) return;
 
-  indicator.textContent =
-    text;
+  indicator.textContent = text;
 
   indicator.classList.toggle(
     "active",
@@ -1456,68 +997,41 @@ function setMicIndicator(
   );
 }
 
-function setRecordButton(
-  recording
-) {
-
+function setRecordButton(recording) {
   const button =
-    document.querySelector(
-      "#recordBtn"
-    );
+    document.querySelector("#recordBtn");
 
   if (!button) return;
 
   if (recording) {
-
     button.textContent =
       "⏹️ BERHENTI RAKAM";
 
-    button.classList.add(
-      "recording"
-    );
-
-  }
-
-  else {
-
+    button.classList.add("recording");
+  } else {
     button.textContent =
       "🎙️ MULA RAKAM";
 
-    button.classList.remove(
-      "recording"
-    );
-
+    button.classList.remove("recording");
   }
 }
 
-function setStatus(
-  text = ""
-) {
-
+function setStatus(text = "") {
   const el =
-    document.querySelector(
-      "#statusLine"
-    );
+    document.querySelector("#statusLine");
 
   if (!el) return;
 
-  el.textContent =
-    text;
+  el.textContent = text;
 }
 
-function setTranscript(
-  text = ""
-) {
-
+function setTranscript(text = "") {
   const el =
-    document.querySelector(
-      "#transcript"
-    );
+    document.querySelector("#transcript");
 
   if (!el) return;
 
-  el.textContent =
-    text;
+  el.textContent = text;
 }
 
 // =====================================================
@@ -1536,31 +1050,21 @@ let currentVoiceIsCP5 = false;
 // START RECOGNITION
 // =====================================================
 
-function startRecognition(
-  d,
-  isCP4 = false,
-  isCP5 = false
-) {
-
+function startRecognition(d, isCP4 = false, isCP5 = false) {
   const SR = getSpeechRecognition();
 
   if (!SR) {
-
-    setStatus(
-      "⚠️ Rakaman suara tidak disokong oleh pelayar ini."
-    );
-
+    setStatus("⚠️ Rakaman suara tidak disokong oleh pelayar ini.");
     return;
   }
 
   if (recognition || recognitionStarting) {
-    setStatus(
-      "⏳ Mikrofon sedang menamatkan sesi sebelumnya. Cuba sekali lagi."
-    );
+    setStatus("⏳ Mikrofon sedang menamatkan sesi sebelumnya. Cuba sekali lagi.");
     return;
   }
 
   stopSpeech();
+  setAudioRecordingMode();
 
   currentVoiceData = d;
   currentVoiceIsCP4 = isCP4;
@@ -1568,17 +1072,13 @@ function startRecognition(
 
   finalTranscript = "";
   interimTranscript = "";
-
   recognitionShouldStop = false;
   recognitionEvaluated = false;
 
   recognitionSession++;
-
-  const thisSession =
-    recognitionSession;
+  const thisSession = recognitionSession;
 
   const r = new SR();
-
   recognition = r;
   recognitionStarting = true;
 
@@ -1587,34 +1087,15 @@ function startRecognition(
   r.interimResults = true;
   r.maxAlternatives = 5;
 
-  setTranscript(
-    "Mula bertutur..."
-  );
-
-  setStatus(
-    "🎙️ Membuka mikrofon..."
-  );
-
-  setMicIndicator(
-    true,
-    "🎤 Membuka mikrofon..."
-  );
-
-  // ===================================================
-  // START
-  // ===================================================
+  setTranscript("Mula bertutur...");
+  setStatus("🎙️ Membuka mikrofon...");
+  setMicIndicator(true, "🎤 Membuka mikrofon...");
 
   r.onstart = () => {
-
-    if (
-      thisSession !== recognitionSession
-    ) {
-      return;
-    }
+    if (thisSession !== recognitionSession) return;
 
     recognitionStarting = false;
     isRecording = true;
-
     setRecordButton(true);
 
     setMicIndicator(
@@ -1622,44 +1103,18 @@ function startRecognition(
       "🎙️ Mikrofon aktif — sedang mendengar..."
     );
 
-    setStatus(
-      "Saya sedang mendengar..."
-    );
+    setStatus("Saya sedang mendengar...");
   };
-
-  // ===================================================
-  // SPEECH START
-  // ===================================================
 
   r.onspeechstart = () => {
+    if (thisSession !== recognitionSession) return;
 
-    if (
-      thisSession !== recognitionSession
-    ) {
-      return;
-    }
-
-    setMicIndicator(
-      true,
-      "🗣️ Suara dikesan"
-    );
-
-    setStatus(
-      "🗣️ Suara sedang dikesan..."
-    );
+    setMicIndicator(true, "🗣️ Suara dikesan");
+    setStatus("🗣️ Suara sedang dikesan...");
   };
 
-  // ===================================================
-  // RESULT
-  // ===================================================
-
   r.onresult = event => {
-
-    if (
-      thisSession !== recognitionSession
-    ) {
-      return;
-    }
+    if (thisSession !== recognitionSession) return;
 
     let finalText = "";
     let interimText = "";
@@ -1669,120 +1124,64 @@ function startRecognition(
       i < event.results.length;
       i++
     ) {
-
-      const result =
-        event.results[i];
-
-      const text =
-        result[0].transcript;
+      const result = event.results[i];
+      const text = result[0].transcript;
 
       if (result.isFinal) {
-
-        finalText +=
-          " " + text;
-
+        finalText += " " + text;
       } else {
-
-        interimText +=
-          " " + text;
+        interimText += " " + text;
       }
     }
 
     if (finalText) {
-
-      finalTranscript +=
-        " " + finalText;
+      finalTranscript += " " + finalText;
     }
 
-    interimTranscript =
-      interimText;
+    interimTranscript = interimText;
 
-    const display =
-      (
-        finalTranscript +
-        " " +
-        interimTranscript
-      )
-        .replace(/\s+/g, " ")
-        .trim();
+    const display = (
+      finalTranscript + " " + interimTranscript
+    ).replace(/\s+/g, " ").trim();
 
     if (display) {
-
       setTranscript(display);
-
-      setStatus(
-        "✅ Suara dikesan."
-      );
-
-      setMicIndicator(
-        true,
-        "🗣️ Suara dikesan"
-      );
+      setStatus("✅ Suara dikesan.");
+      setMicIndicator(true, "🗣️ Suara dikesan");
     }
   };
 
-  // ===================================================
-  // ERROR
-  // ===================================================
-
   r.onerror = event => {
-
-    if (
-      thisSession !== recognitionSession
-    ) {
-      return;
-    }
-
-    if (
-      event.error === "aborted"
-    ) {
-      return;
-    }
+    if (thisSession !== recognitionSession) return;
+    if (event.error === "aborted") return;
 
     if (
       event.error === "not-allowed" ||
       event.error === "service-not-allowed"
     ) {
-
-      setStatus(
-        "⚠️ Sila benarkan akses mikrofon."
-      );
-
+      setStatus("⚠️ Sila benarkan akses mikrofon.");
       return;
     }
 
-    if (
-      event.error === "no-speech"
-    ) {
-
+    if (event.error === "no-speech") {
       setStatus(
         "🎤 Suara belum dapat dikesan. Tekan MULA RAKAM dan cuba lagi."
       );
-
       return;
     }
 
-    if (
-      event.error === "audio-capture"
-    ) {
-
+    if (event.error === "audio-capture") {
       setStatus(
         "⚠️ Mikrofon tidak dapat digunakan. Cuba sekali lagi."
       );
-
       return;
     }
 
-    setStatus(
-      "⚠️ Rakaman terganggu. Cuba sekali lagi."
-    );
+    setStatus("⚠️ Rakaman terganggu. Cuba sekali lagi.");
   };
 
-  // ===================================================
-  // END
-  // ===================================================
-
   r.onend = () => {
+    if (thisSession !== recognitionSession) return;
 
     if (recognition === r) {
       recognition = null;
@@ -1790,32 +1189,18 @@ function startRecognition(
 
     recognitionStarting = false;
     isRecording = false;
+
     setRecordButton(false);
+    setAudioPlaybackMode();
 
-    setMicIndicator(
-      false,
-      "🎤 Mikrofon tidak aktif"
-    );
+    setMicIndicator(false, "🎤 Mikrofon tidak aktif");
 
-    if (
-      thisSession !== recognitionSession
-    ) {
-      return;
-    }
-
-    const heard =
-      (
-        finalTranscript +
-        " " +
-        interimTranscript
-      )
-        .replace(/\s+/g, " ")
-        .trim();
+    const heard = (
+      finalTranscript + " " + interimTranscript
+    ).replace(/\s+/g, " ").trim();
 
     if (heard) {
-
       if (!recognitionEvaluated) {
-
         recognitionEvaluated = true;
 
         evaluateVoiceResponse(
@@ -1824,41 +1209,27 @@ function startRecognition(
           currentVoiceIsCP5
         );
       }
-
       return;
     }
 
     if (!recognitionShouldStop) {
-
       setStatus(
         "🎤 Suara belum dapat dikesan. Tekan MULA RAKAM dan cuba lagi."
       );
     }
   };
 
-  // ===================================================
-  // MULAKAN
-  // ===================================================
-
   try {
-
     r.start();
-
   } catch (err) {
-
     recognition = null;
     recognitionStarting = false;
     isRecording = false;
+
     setRecordButton(false);
-
-    setMicIndicator(
-      false,
-      "🎤 Mikrofon tidak aktif"
-    );
-
-    setStatus(
-      "🎤 Tekan MULA RAKAM sekali lagi."
-    );
+    setAudioPlaybackMode();
+    setMicIndicator(false, "🎤 Mikrofon tidak aktif");
+    setStatus("🎤 Tekan MULA RAKAM sekali lagi.");
   }
 }
 
@@ -1867,7 +1238,6 @@ function startRecognition(
 // =====================================================
 
 function stopRecognition(silent = false) {
-
   const r = recognition;
 
   if (!r) {
@@ -1888,7 +1258,7 @@ function stopRecognition(silent = false) {
     recognitionEvaluated = true;
 
     try {
-      r.stop();
+      r.abort();
     } catch (e) {
       if (recognition === r) {
         recognition = null;
@@ -1900,10 +1270,8 @@ function stopRecognition(silent = false) {
       interimTranscript = "";
 
       setRecordButton(false);
-      setMicIndicator(
-        false,
-        "🎤 Mikrofon tidak aktif"
-      );
+      setAudioPlaybackMode();
+      setMicIndicator(false, "🎤 Mikrofon tidak aktif");
     }
 
     return;
@@ -1912,10 +1280,7 @@ function stopRecognition(silent = false) {
   recognitionShouldStop = true;
 
   setStatus("⏳ Memproses rakaman...");
-  setMicIndicator(
-    false,
-    "⏹️ Rakaman dihentikan"
-  );
+  setMicIndicator(false, "⏹️ Rakaman dihentikan");
 
   try {
     r.stop();
@@ -1926,7 +1291,9 @@ function stopRecognition(silent = false) {
 
     recognitionStarting = false;
     isRecording = false;
+
     setRecordButton(false);
+    setAudioPlaybackMode();
 
     const heard = (
       finalTranscript + " " + interimTranscript
@@ -1957,7 +1324,6 @@ function evaluateVoiceResponse(
   isCP4 = false,
   isCP5 = false
 ) {
-
   const raw = (
     finalTranscript + " " + interimTranscript
   ).trim();
@@ -1965,14 +1331,10 @@ function evaluateVoiceResponse(
   const spoken = norm(raw);
 
   if (!spoken) {
-    setTranscript(
-      "Tiada suara yang dapat dikenal pasti."
-    );
-
+    setTranscript("Tiada suara yang dapat dikenal pasti.");
     setStatus(
       "🎤 Suara belum dapat dikesan. Sila cuba rakam sekali lagi."
     );
-
     fb("🎤 Cuba rakam sekali lagi.", 0);
     return;
   }
@@ -1981,22 +1343,15 @@ function evaluateVoiceResponse(
 
   let correct = false;
 
-  // MISI 3: Salah satu kata kunci
   if (Array.isArray(d.keywords)) {
     correct = d.keywords.some(
       keyword => spoken.includes(norm(keyword))
     );
-  }
-
-  // MISI 4: Salah satu respons
-  else if (Array.isArray(d.any)) {
+  } else if (Array.isArray(d.any)) {
     correct = d.any.some(
       keyword => spoken.includes(norm(keyword))
     );
-  }
-
-  // MISI 4 SOALAN 3 DAN MISI 5
-  else if (Array.isArray(d.all)) {
+  } else if (Array.isArray(d.all)) {
     correct = d.all.every(
       keyword => spoken.includes(norm(keyword))
     );
@@ -2007,9 +1362,7 @@ function evaluateVoiceResponse(
     fb(good(), 1);
     advance();
   } else {
-    setStatus(
-      "🔄 Cuba berikan respons sekali lagi."
-    );
+    setStatus("🔄 Cuba berikan respons sekali lagi.");
 
     fb(
       isCP5
@@ -2027,15 +1380,12 @@ function evaluateVoiceResponse(
 // =====================================================
 
 function advance() {
-
   stopSpeech();
   stopRecognition(true);
 
   const id = game.modalCheckpoint;
   if (!id) return;
 
-  // Misi 4 menerima 10 markah selepas tamat.
-  // Misi lain menerima 10 markah setiap soalan.
   if (id !== 4) {
     game.score += 10;
     updateHUD();
@@ -2057,7 +1407,6 @@ function advance() {
 // =====================================================
 
 function completeCP(id) {
-
   stopSpeech();
 
   if (id !== 4) {
@@ -2083,10 +1432,7 @@ function completeCP(id) {
 
   activityArea.innerHTML = `
     <div class="instruction-screen">
-
-      <div class="instruction-icon">
-        ⭐
-      </div>
+      <div class="instruction-icon">⭐</div>
 
       <h3>Misi ${id} Selesai!</h3>
 
@@ -2103,7 +1449,6 @@ function completeCP(id) {
           🗺️ KEMBALI KE PETA
         </button>
       </div>
-
     </div>
   `;
 
@@ -2111,14 +1456,11 @@ function completeCP(id) {
     document.querySelector("#continueMapBtn");
 
   continueMapBtn.onclick = () => {
-
     modal.classList.add("hidden");
     game.modalCheckpoint = null;
 
     handleInteraction();
 
-    // Selepas Misi 3 sahaja:
-    // Paparkan peta dahulu, kemudian permainan selingan.
     if (id === 3) {
       window.setTimeout(
         showColorMatchingInterlude,
@@ -2134,7 +1476,6 @@ function completeCP(id) {
 // =====================================================
 
 function showColorMatchingInterlude() {
-
   // Tiada audio atau mikrofon digunakan.
 
   const pairs = [
@@ -2155,7 +1496,6 @@ function showColorMatchingInterlude() {
     }
   ];
 
-  // Susunan gambar berbeza daripada perkataan.
   const images = [
     pairs[2],
     pairs[0],
@@ -2171,12 +1511,9 @@ function showColorMatchingInterlude() {
   const oldCloseDisplay =
     closeBtn ? closeBtn.style.display : "";
 
-  modalTitle.textContent =
-    "Permainan Selingan";
-
+  modalTitle.textContent = "Permainan Selingan";
   modal.classList.remove("hidden");
 
-  // Murid perlu menyelesaikan permainan selingan.
   if (closeBtn) {
     closeBtn.style.display = "none";
   }
@@ -2190,7 +1527,6 @@ function showColorMatchingInterlude() {
         text-align:center;
       "
     >
-
       <h3>🎨 PERMAINAN SELINGAN</h3>
 
       <p style="font-weight:bold;">
@@ -2210,7 +1546,6 @@ function showColorMatchingInterlude() {
           margin:18px 0;
         "
       >
-
         <div
           id="colorWords"
           style="display:grid;gap:12px;"
@@ -2250,7 +1585,6 @@ function showColorMatchingInterlude() {
             </button>
           `).join("")}
         </div>
-
       </div>
 
       <p
@@ -2259,7 +1593,6 @@ function showColorMatchingInterlude() {
       >
         Padankan ketiga-tiga warna.
       </p>
-
     </div>
   `;
 
@@ -2277,9 +1610,7 @@ function showColorMatchingInterlude() {
   // PILIH PERKATAAN
 
   wordButtons.forEach(btn => {
-
     btn.addEventListener("click", () => {
-
       if (matched.has(btn.dataset.word)) {
         return;
       }
@@ -2292,8 +1623,7 @@ function showColorMatchingInterlude() {
         }
       });
 
-      btn.style.outline =
-        "4px solid #ffb703";
+      btn.style.outline = "4px solid #ffb703";
 
       feedback.textContent =
         `Sekarang pilih gambar untuk ${selectedWord}.`;
@@ -2303,9 +1633,7 @@ function showColorMatchingInterlude() {
   // PILIH GAMBAR
 
   imageButtons.forEach(btn => {
-
     btn.addEventListener("click", () => {
-
       if (
         !selectedWord ||
         matched.has(btn.dataset.word)
@@ -2318,15 +1646,11 @@ function showColorMatchingInterlude() {
         return;
       }
 
-      // PADANAN SALAH
-
       if (selectedWord !== btn.dataset.word) {
         feedback.textContent =
           "Belum tepat. Cuba padankan sekali lagi.";
         return;
       }
-
-      // PADANAN BETUL
 
       matched.add(selectedWord);
 
@@ -2347,16 +1671,12 @@ function showColorMatchingInterlude() {
 
       selectedWord = null;
 
-      // SEMUA PADANAN TELAH SELESAI
-
       if (matched.size === pairs.length) {
-
         activityArea.innerHTML = `
           <div
             class="instruction-screen"
             style="text-align:center;"
           >
-
             <div class="instruction-icon">
               🌟
             </div>
@@ -2368,7 +1688,6 @@ function showColorMatchingInterlude() {
             </p>
 
             <div class="activity-actions">
-
               <button
                 type="button"
                 id="finishInterludeBtn"
@@ -2376,26 +1695,20 @@ function showColorMatchingInterlude() {
               >
                 🗺️ KEMBALI KE PETA
               </button>
-
             </div>
-
           </div>
         `;
 
         document
           .querySelector("#finishInterludeBtn")
           .onclick = () => {
-
             if (closeBtn) {
               closeBtn.style.display =
                 oldCloseDisplay;
             }
 
             modal.classList.add("hidden");
-
-            modalTitle.textContent =
-              "Misi 4";
-
+            modalTitle.textContent = "Misi 4";
             handleInteraction();
           };
       }
@@ -2420,7 +1733,6 @@ interactBtn.addEventListener(
 // =====================================================
 
 function showResults() {
-
   stopSpeech();
   stopRecognition(true);
 
@@ -2431,8 +1743,7 @@ function showResults() {
 
   document
     .querySelector("#resultScore")
-    .textContent =
-      game.score;
+    .textContent = game.score;
 
   resultModal.classList.remove("hidden");
 }
@@ -2456,7 +1767,6 @@ document
 // =====================================================
 
 function setKey(key, down) {
-
   const allowed = [
     "ArrowUp",
     "ArrowDown",
@@ -2481,42 +1791,35 @@ function setKey(key, down) {
     : keys.delete(key.toLowerCase());
 }
 
-window.addEventListener(
-  "keydown",
-  event => {
-
-    if (
-      [
-        "ArrowUp",
-        "ArrowDown",
-        "ArrowLeft",
-        "ArrowRight"
-      ].includes(event.key)
-    ) {
-      event.preventDefault();
-    }
-
-    if (
-      (
-        event.key === "e" ||
-        event.key === "E"
-      ) &&
-      modal.classList.contains("hidden") &&
-      !gameScreen.classList.contains("hidden")
-    ) {
-      interact();
-    }
-
-    setKey(event.key, true);
+window.addEventListener("keydown", event => {
+  if (
+    [
+      "ArrowUp",
+      "ArrowDown",
+      "ArrowLeft",
+      "ArrowRight"
+    ].includes(event.key)
+  ) {
+    event.preventDefault();
   }
-);
 
-window.addEventListener(
-  "keyup",
-  event => {
-    setKey(event.key, false);
+  if (
+    (
+      event.key === "e" ||
+      event.key === "E"
+    ) &&
+    modal.classList.contains("hidden") &&
+    !gameScreen.classList.contains("hidden")
+  ) {
+    interact();
   }
-);
+
+  setKey(event.key, true);
+});
+
+window.addEventListener("keyup", event => {
+  setKey(event.key, false);
+});
 
 // =====================================================
 // D-PAD
@@ -2525,7 +1828,6 @@ window.addEventListener(
 document
   .querySelectorAll("#dpad button")
   .forEach(button => {
-
     const key =
       button.dataset.key.toLowerCase();
 
@@ -2543,25 +1845,10 @@ document
       button.classList.remove("pressed");
     };
 
-    button.addEventListener(
-      "pointerdown",
-      on
-    );
-
-    button.addEventListener(
-      "pointerup",
-      off
-    );
-
-    button.addEventListener(
-      "pointercancel",
-      off
-    );
-
-    button.addEventListener(
-      "pointerleave",
-      off
-    );
+    button.addEventListener("pointerdown", on);
+    button.addEventListener("pointerup", off);
+    button.addEventListener("pointercancel", off);
+    button.addEventListener("pointerleave", off);
   });
 
 // =====================================================
@@ -2569,7 +1856,6 @@ document
 // =====================================================
 
 function updatePlayer(time) {
-
   if (
     !modal.classList.contains("hidden") ||
     !resultModal.classList.contains("hidden")
@@ -2674,7 +1960,6 @@ function updatePlayer(time) {
 // =====================================================
 
 function updateCamera() {
-
   const viewport =
     document.querySelector("#worldViewport");
 
@@ -2717,7 +2002,6 @@ function updateCamera() {
 // =====================================================
 
 function resizeWorld() {
-
   const viewport =
     document.querySelector("#worldViewport");
 
@@ -2729,30 +2013,18 @@ function resizeWorld() {
     vh / MAP_H
   );
 
-  const portrait =
-    vh > vw;
+  const portrait = vh > vw;
+  const minimum = portrait ? 0.7 : 0.6;
 
-  const minimum =
-    portrait ? 0.7 : 0.6;
+  scale = Math.max(minimum, cover);
 
-  scale = Math.max(
-    minimum,
-    cover
-  );
-
-  world.style.width =
-    MAP_W + "px";
-
-  world.style.height =
-    MAP_H + "px";
+  world.style.width = MAP_W + "px";
+  world.style.height = MAP_H + "px";
 
   updateCamera();
 }
 
-window.addEventListener(
-  "resize",
-  resizeWorld
-);
+window.addEventListener("resize", resizeWorld);
 
 window.addEventListener(
   "orientationchange",
@@ -2764,7 +2036,6 @@ window.addEventListener(
 // =====================================================
 
 function loop(time) {
-
   updatePlayer(time);
   updateCamera();
   handleInteraction();
@@ -2773,6 +2044,11 @@ function loop(time) {
 }
 
 // redeploy
+
+
+
+
+
 
 
 
