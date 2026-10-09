@@ -907,65 +907,54 @@ function setAudioRecordingMode() {
 // =====================================================
 
 function speak(src) {
-
   stopSpeech();
-
-  // Pastikan iPhone/iPad berada dalam mod media
   setAudioPlaybackMode();
 
-  currentAudio = new Audio(src);
+  const audio = new Audio(src);
+  currentAudio = audio;
 
-  currentAudio.muted = false;
-  currentAudio.volume = 1.0;
-  currentAudio.preload = "auto";
+  audio.muted = false;
+  audio.volume = 1;
+  audio.preload = "auto";
 
-  currentAudio.addEventListener(
-    "canplaythrough",
+  audio.onended = () => {
+    if (currentAudio === audio) {
+      currentAudio = null;
+    }
+  };
 
-    function playAudio() {
+  audio.onerror = () => {
+    if (currentAudio === audio) {
+      currentAudio = null;
+    }
+    fb("🔊 Audio tidak dapat dimainkan. Cuba sekali lagi.", 0);
+  };
 
-      if (!currentAudio) return;
-
-      // Pastikan sekali lagi sebelum play
-      setAudioPlaybackMode();
-
-      currentAudio.muted = false;
-      currentAudio.volume = 1.0;
-
-      currentAudio
-        .play()
-        .catch(() => {
-
-          fb(
-            "🔊 Audio tidak dapat dimainkan. Tekan DENGAR AUDIO sekali lagi.",
-            0
-          );
-
-        });
-
-    },
-
-    { once: true }
-  );
-
-  currentAudio.load();
+  audio.play().catch(() => {
+    if (currentAudio === audio) {
+      fb("🔊 Tekan DENGAR AUDIO sekali lagi.", 0);
+    }
+  });
 }
-
 
 // =====================================================
 // STOP AUDIO
 // =====================================================
 
 function stopSpeech() {
-
   if (currentAudio) {
-
-    currentAudio.pause();
-    currentAudio.currentTime = 0;
+    const audio = currentAudio;
     currentAudio = null;
 
-  }
+    audio.onended = null;
+    audio.onerror = null;
 
+    audio.pause();
+
+    try {
+      audio.currentTime = 0;
+    } catch (e) {}
+  }
 }
 // =====================================================
 // FEEDBACK
@@ -1585,10 +1574,15 @@ if (recognition || recognitionStarting) {
 
 
   stopSpeech();
-  
+
+  // Sediakan audio untuk rakaman mikrofon
+  try {
+    if (navigator.audioSession) {
+      navigator.audioSession.type = "auto";
+    }
+  } catch (e) {}
 
   // Simpan soalan semasa
-
   currentVoiceData = d;
   currentVoiceIsCP4 = isCP4;
   currentVoiceIsCP5 = isCP5;
