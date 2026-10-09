@@ -193,9 +193,7 @@ function testMicrophone() {
 
     const text = norm(heard);
 
-    if (
-    if (text.split(" ").includes("hai")) {
-    ) {
+   if (text.split(" ").includes("hai")) {
       micTestPassed = true;
 
       if (micTestStatus) {
