@@ -1457,19 +1457,10 @@ recordBtn.onclick = () => {
 finalTranscript = "";
 interimTranscript = "";
 
-// Sediakan audio session untuk penggunaan mikrofon.
-try {
-  if (
-    navigator.audioSession &&
-    "type" in navigator.audioSession
-  ) {
-    navigator.audioSession.type = "play-and-record";
-  }
-} catch (e) {
-  console.log("Audio session dikendalikan oleh pelayar.");
-}
+// Pulangkan audio session kepada keadaan playback dahulu.
+setAudioPlaybackMode();
 
-// Mulakan recognition Misi 5.
+// Mulakan recognition baru untuk Misi 5.
 startRecognition(
   d,
   false,
