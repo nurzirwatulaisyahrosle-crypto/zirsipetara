@@ -1408,8 +1408,11 @@ function renderVoice(
     );
 
   listenBtn.onclick = () => {
-    speak(d.audio);
-  };
+  if (isCP5 && activityIndex === 0 && isRecording) {
+    return;
+  }
+  speak(d.audio);
+};
 
   /*
     PENTING UNTUK MOBILE:
@@ -1457,9 +1460,10 @@ recordBtn.onclick = () => {
 finalTranscript = "";
 interimTranscript = "";
 
-// Pulangkan audio session kepada keadaan playback dahulu.
-setAudioPlaybackMode();
-
+// Jangan paksa playback untuk Misi 5 Soalan 1.
+if (!(isCP5 && activityIndex === 0)) {
+  setAudioPlaybackMode();
+}
 // Mulakan recognition baru untuk Misi 5.
 startRecognition(
   d,
