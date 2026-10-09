@@ -892,7 +892,7 @@ function setAudioRecordingMode() {
       navigator.audioSession &&
       "type" in navigator.audioSession
     ) {
-      navigator.audioSession.type = "play-and-record";
+    navigator.audioSession.type = "playback";
     }
   } catch (e) {
     console.log("Audio recording mode tidak tersedia.");
