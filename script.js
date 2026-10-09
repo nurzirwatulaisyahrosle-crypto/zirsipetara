@@ -1594,60 +1594,91 @@ function startRecognition(
   // RECOGNITION END
   // ===================================================
 
-  r.onend = () => {
-    // Sesi lama tidak boleh mengganggu sesi baharu.
-    if (
-      thisSession !== recognitionSession ||
-      recognition !== r
-    ) {
-      return;
-    }
+ r.onend = () => {
 
-    recognition = null;
-    recognitionStarting = false;
-    isRecording = false;
+  // Pastikan ini sesi rakaman yang betul.
+  if (
+    thisSession !== recognitionSession ||
+    recognition !== r
+  ) {
+    return;
+  }
 
-    setRecordButton(false);
+  // Safari telah menamatkan sesi mikrofon.
+  recognition = null;
+  recognitionStarting = false;
+  isRecording = false;
 
-    setMicIndicator(
-      false,
-      "🎤 Mikrofon tidak aktif"
+  setRecordButton(false);
+
+  setMicIndicator(
+    false,
+    "🎤 Mikrofon tidak aktif"
+  );
+
+  // Jika rakaman dibatalkan, buang semua data.
+  if (recognitionEvaluated) {
+    finalTranscript = "";
+    interimTranscript = "";
+
+    currentVoiceData = null;
+    currentVoiceIsCP4 = false;
+    currentVoiceIsCP5 = false;
+
+    recognitionShouldStop = false;
+    return;
+  }
+
+  // Ambil transkrip sebelum mengosongkannya.
+  const heard = (
+    finalTranscript + " " + interimTranscript
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Jika tiada suara dikesan.
+  if (!heard) {
+    finalTranscript = "";
+    interimTranscript = "";
+
+    currentVoiceData = null;
+    currentVoiceIsCP4 = false;
+    currentVoiceIsCP5 = false;
+
+    recognitionShouldStop = false;
+
+    setStatus(
+      "🎤 Suara belum dikesan. Tekan MULA RAKAM dan cuba lagi."
     );
 
-    // Sesi ditutup kerana keluar misi / tukar soalan.
-    if (recognitionEvaluated) {
-      return;
-    }
+    return;
+  }
 
-    const heard = (
-      finalTranscript + " " + interimTranscript
-    )
-      .replace(/\s+/g, " ")
-      .trim();
+  // Elakkan jawapan disemak dua kali.
+  recognitionEvaluated = true;
 
-    if (heard) {
-      recognitionEvaluated = true;
+  // Simpan rujukan soalan untuk semakan.
+  const data = currentVoiceData;
+  const isCP4 = currentVoiceIsCP4;
+  const isCP5 = currentVoiceIsCP5;
 
-      evaluateVoiceResponse(
-        currentVoiceData,
-        currentVoiceIsCP4,
-        currentVoiceIsCP5
-      );
+  // Semak jawapan menggunakan sistem asal.
+  evaluateVoiceResponse(
+    data,
+    isCP4,
+    isCP5
+  );
 
-      return;
-    }
+  // Buang data rakaman selepas semakan.
+  finalTranscript = "";
+  interimTranscript = "";
 
-    if (!recognitionShouldStop) {
-      setStatus(
-        "🎤 Suara belum dapat dikesan. Tekan MULA RAKAM dan cuba lagi."
-      );
-    } else {
-      setStatus(
-        "🎤 Tiada suara dikesan. Cuba rakam sekali lagi."
-      );
-    }
-  };
+  currentVoiceData = null;
+  currentVoiceIsCP4 = false;
+  currentVoiceIsCP5 = false;
 
+  recognitionShouldStop = false;
+};
   // ===================================================
   // START MICROPHONE
   // ===================================================
@@ -1685,80 +1716,68 @@ function startRecognition(
 // =====================================================
 
 function stopRecognition(silent = false) {
+
   const r = recognition;
 
   if (!r) {
     recognitionStarting = false;
     isRecording = false;
-
     setRecordButton(false);
 
     if (silent) {
       finalTranscript = "";
       interimTranscript = "";
+      currentVoiceData = null;
+      currentVoiceIsCP4 = false;
+      currentVoiceIsCP5 = false;
     }
 
     return;
   }
 
-  if (silent) {
-    // Abaikan jawapan sesi yang sengaja ditutup.
-    recognitionShouldStop = true;
-    recognitionEvaluated = true;
-
-    try {
-      r.stop();
-    } catch (e) {
-      if (recognition === r) {
-        recognition = null;
-        recognitionStarting = false;
-        isRecording = false;
-
-        setRecordButton(false);
-      }
-    }
-
-    return;
-  }
-
-  // Murid menekan BERHENTI RAKAM.
   recognitionShouldStop = true;
 
-  setStatus("⏳ Memproses rakaman...");
+  if (silent) {
+    recognitionEvaluated = true;
+  } else {
+    setStatus("⏳ Memproses rakaman...");
 
-  setMicIndicator(
-    false,
-    "⏹️ Rakaman dihentikan"
-  );
+    setMicIndicator(
+      false,
+      "⏹️ Rakaman dihentikan"
+    );
+  }
 
   try {
     r.stop();
-  } catch (e) {
+  } catch (error) {
+    console.warn(
+      "SpeechRecognition stop error:",
+      error
+    );
+
     if (recognition === r) {
       recognition = null;
       recognitionStarting = false;
       isRecording = false;
 
       setRecordButton(false);
+
+      setMicIndicator(
+        false,
+        "🎤 Mikrofon tidak aktif"
+      );
     }
 
-    const heard = (
-      finalTranscript + " " + interimTranscript
-    )
-      .replace(/\s+/g, " ")
-      .trim();
-
-    if (heard && !recognitionEvaluated) {
-      recognitionEvaluated = true;
-
-      evaluateVoiceResponse(
-        currentVoiceData,
-        currentVoiceIsCP4,
-        currentVoiceIsCP5
-      );
-    } else if (!heard) {
+    if (silent) {
+      finalTranscript = "";
+      interimTranscript = "";
+      currentVoiceData = null;
+      currentVoiceIsCP4 = false;
+      currentVoiceIsCP5 = false;
+    } else {
       setStatus(
-        "🎤 Suara belum dapat dikesan. Cuba sekali lagi."
+        "⚠️ Rakaman terganggu. Cuba rakam sekali lagi."
       );
     }
   }
@@ -1842,31 +1861,35 @@ function evaluateVoiceResponse(
 // =====================================================
 
 function advance() {
+
+  // Hentikan audio.
   stopSpeech();
-  stopRecognition(true);
 
   const id = game.modalCheckpoint;
 
   if (!id) return;
 
-  // Misi 4 memberikan 10 markah
-  // selepas keseluruhan misi selesai.
+  // Jika mikrofon masih aktif, hentikannya.
+  // Jika sudah tamat, jangan hentikan dua kali.
+  if (recognition) {
+    stopRecognition(true);
+  }
+
+  // Kekalkan sistem markah asal.
   if (id !== 4) {
     game.score += 10;
     updateHUD();
   }
 
-  window.setTimeout(() => {
-    activityIndex += 1;
+  // Terus ke soalan seterusnya tanpa delay.
+  activityIndex += 1;
 
-    if (activityIndex < CP[id].length) {
-      renderActivity(id);
-    } else {
-      completeCP(id);
-    }
-  }, 900);
+  if (activityIndex < CP[id].length) {
+    renderActivity(id);
+  } else {
+    completeCP(id);
+  }
 }
-
 // =====================================================
 // COMPLETE CHECKPOINT
 // =====================================================
