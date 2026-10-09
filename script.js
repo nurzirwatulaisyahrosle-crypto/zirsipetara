@@ -618,7 +618,7 @@ const CP = {
 
     {
       audio: "assets/audio/cp4-3.m4a",
-      all: ["cuka", "kicap", "garam"]
+      all: ["telur", "kicap", "garam"]
     }
   ],
 
