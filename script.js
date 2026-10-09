@@ -544,7 +544,6 @@ document
 let activityIndex = 0;
 
 let recognition = null;
-let recognitionStarting = false;
 let isRecording = false;
 
 let finalTranscript = "";
@@ -825,6 +824,7 @@ function shell(title, total, body) {
 
 function renderActivity(id) {
   stopSpeech();
+  
 
   const d =
     CP[id][activityIndex];
@@ -861,6 +861,7 @@ function renderActivity(id) {
 
 let currentAudio = null;
 
+
 // =====================================================
 // IOS / IPADOS AUDIO SESSION
 // =====================================================
@@ -885,45 +886,58 @@ function setAudioPlaybackMode() {
   }
 }
 
-function setAudioRecordingMode() {
-  try {
-    if (
-      navigator.audioSession &&
-      "type" in navigator.audioSession
-    ) {
-      navigator.audioSession.type = "play-and-record";
-    }
-  } catch (e) {
-    console.log("Audio recording mode tidak tersedia.");
-  }
-}
+
+
 
 // =====================================================
 // PLAY AUDIO
 // =====================================================
 
 function speak(src) {
+
   stopSpeech();
+
+  // Pastikan iPhone/iPad berada dalam mod media
   setAudioPlaybackMode();
 
-  const audio = new Audio(src);
-  currentAudio = audio;
-  audio.preload = "auto";
-  audio.muted = false;
-  audio.volume = 1;
+  currentAudio = new Audio(src);
 
-  // Main terus dalam tindakan tekan pengguna (penting untuk Safari iOS).
-  const promise = audio.play();
-  if (promise && typeof promise.catch === "function") {
-    promise.catch(err => {
-      if (currentAudio === audio) {
-    
-        console.warn("Audio tidak dapat dimainkan:", err);
-        fb("🔊 Audio tidak dapat dimainkan. Tekan DENGAR AUDIO sekali lagi.", 0);
-      }
-    });
-  }
+  currentAudio.muted = false;
+  currentAudio.volume = 1.0;
+  currentAudio.preload = "auto";
+
+  currentAudio.addEventListener(
+    "canplaythrough",
+
+    function playAudio() {
+
+      if (!currentAudio) return;
+
+      // Pastikan sekali lagi sebelum play
+      setAudioPlaybackMode();
+
+      currentAudio.muted = false;
+      currentAudio.volume = 1.0;
+
+      currentAudio
+        .play()
+        .catch(() => {
+
+          fb(
+            "🔊 Audio tidak dapat dimainkan. Tekan DENGAR AUDIO sekali lagi.",
+            0
+          );
+
+        });
+
+    },
+
+    { once: true }
+  );
+
+  currentAudio.load();
 }
+
 
 // =====================================================
 // STOP AUDIO
@@ -940,7 +954,6 @@ function stopSpeech() {
   }
 
 }
-
 // =====================================================
 // FEEDBACK
 // =====================================================
@@ -985,7 +998,7 @@ function bad() {
     "💪 Hampir betul. Cuba sekali lagi!",
     "👂 Dengar semula dengan teliti.",
     "🌱 Cuba lagi. Kamu pasti boleh!",
-    "🔊 Tekan DENGAR AUDIO dan cuba lagi."
+        "🔊 Tekan DENGAR AUDIO dan cuba lagi."
   ];
 
   return messages[
@@ -997,7 +1010,7 @@ function bad() {
 }
 
 // =====================================================
-// MISI 1
+// CP1
 // =====================================================
 
 function cp1(d, total) {
@@ -1041,10 +1054,24 @@ function cp1(d, total) {
   const listenBtn =
     document.querySelector("#listenBtn");
 
-  listenBtn.onclick = () => {
-    speak(d.audio);
-  };
+listenBtn.onclick = () => {
+  speak(d.audio);
 
+recordBtn.onclick = () => {
+
+  if (isRecording) {
+    stopRecognition(false);
+  }
+  else {
+    startRecognition(
+      d,
+      isCP4,
+      isCP5
+    );
+  }
+};
+
+}
   document
     .querySelectorAll(".picture-option")
     .forEach(button => {
@@ -1058,7 +1085,6 @@ function cp1(d, total) {
 
           fb(good(), 1);
           advance();
-
         }
 
         else {
@@ -1071,7 +1097,7 @@ function cp1(d, total) {
 }
 
 // =====================================================
-// MISI 2
+// CP2
 // =====================================================
 
 function cp2(d, total) {
@@ -1261,7 +1287,6 @@ function cp2(d, total) {
 
       fb(good(), 1);
       advance();
-
     }
 
     else {
@@ -1296,9 +1321,10 @@ function norm(text = "") {
     .trim();
 }
 
+
 // =====================================================
 // VOICE ACTIVITIES
-// MISI 3, MISI 4 DAN MISI 5
+// Misi 3, Misi 4 dan Misi 5
 // =====================================================
 
 function renderVoice(
@@ -1385,21 +1411,80 @@ function renderVoice(
     speak(d.audio);
   };
 
-  recordBtn.onclick = () => {
+  /*
+    PENTING UNTUK MOBILE:
+    SpeechRecognition dimulakan terus
+    daripada tindakan pengguna menekan butang.
+  */
 
-    if (isRecording) {
-      stopRecognition(false);
-      return;
+recordBtn.onclick = () => {
+
+  // ===================================================
+  // JIKA SEDANG MERAKAM
+  // ===================================================
+
+  if (isRecording) {
+
+    stopRecognition(false);
+    return;
+
+  }
+
+
+  // ===================================================
+  // MISI 5 SAHAJA — IOS / IPADOS
+  // ===================================================
+
+  if (isCP5) {
+
+    // Pastikan audio yang sedang bermain betul-betul berhenti
+    stopSpeech();
+
+    // Jika ada recognition lama yang masih tertinggal,
+    // tutup dahulu sebelum cipta recognition baru.
+    if (recognition) {
+
+      try {
+        recognition.abort();
+      } catch (e) {}
+
+      recognition = null;
+      isRecording = false;
+
     }
 
-    startRecognition(
-      d,
-      isCP4,
-      isCP5
-    );
+   // Reset transcript sesi sebelumnya
+finalTranscript = "";
+interimTranscript = "";
 
-  };
+// Pulangkan audio session kepada keadaan playback dahulu.
+setAudioPlaybackMode();
+
+// Mulakan recognition baru untuk Misi 5.
+startRecognition(
+  d,
+  false,
+  true
+);
+
+return;
+  }
+
+
+  // ===================================================
+  // MISI 3 & MISI 4
+  // KEKALKAN CARA YANG SUDAH BERFUNGSI
+  // ===================================================
+
+  startRecognition(
+    d,
+    isCP4,
+    false
+  );
+
+};
 }
+
 
 // =====================================================
 // SPEECH RECOGNITION HELPERS
@@ -1413,6 +1498,7 @@ function getSpeechRecognition() {
     null
   );
 }
+
 
 function setMicIndicator(
   active,
@@ -1434,6 +1520,7 @@ function setMicIndicator(
     !!active
   );
 }
+
 
 function setRecordButton(
   recording
@@ -1469,6 +1556,7 @@ function setRecordButton(
   }
 }
 
+
 function setStatus(
   text = ""
 ) {
@@ -1483,6 +1571,7 @@ function setStatus(
   el.textContent =
     text;
 }
+
 
 function setTranscript(
   text = ""
@@ -1499,8 +1588,10 @@ function setTranscript(
     text;
 }
 
+
 // =====================================================
 // SPEECH RECOGNITION STATE
+// SIMPLE VERSION — SAME APPROACH AS MIC TEST
 // =====================================================
 
 let recognitionSession = 0;
@@ -1510,6 +1601,7 @@ let recognitionEvaluated = false;
 let currentVoiceData = null;
 let currentVoiceIsCP4 = false;
 let currentVoiceIsCP5 = false;
+
 
 // =====================================================
 // START RECOGNITION
@@ -1532,20 +1624,28 @@ function startRecognition(
     return;
   }
 
-  if (recognition || recognitionStarting) {
-    setStatus(
-      "⏳ Mikrofon sedang menamatkan sesi sebelumnya. Cuba sekali lagi."
-    );
-    return;
+
+  // Pastikan tiada recognition lama tertinggal
+  if (recognition) {
+
+    try {
+      recognition.abort();
+    } catch (e) {}
+
+    recognition = null;
   }
 
-  stopSpeech();
-  setAudioRecordingMode();
 
+  stopSpeech();
+
+
+  // Simpan soalan semasa
   currentVoiceData = d;
   currentVoiceIsCP4 = isCP4;
   currentVoiceIsCP5 = isCP5;
 
+
+  // Reset rakaman
   finalTranscript = "";
   interimTranscript = "";
 
@@ -1557,15 +1657,20 @@ function startRecognition(
   const thisSession =
     recognitionSession;
 
-  const r = new SR();
+
+  // Recognition BARU setiap kali tekan MULA RAKAM
+  const r =
+    new SR();
 
   recognition = r;
-  recognitionStarting = true;
 
+
+  // Sama seperti UJI MIKROFON
   r.lang = "ms-MY";
   r.continuous = false;
   r.interimResults = true;
   r.maxAlternatives = 5;
+
 
   setTranscript(
     "Mula bertutur..."
@@ -1580,6 +1685,7 @@ function startRecognition(
     "🎤 Membuka mikrofon..."
   );
 
+
   // ===================================================
   // START
   // ===================================================
@@ -1592,7 +1698,6 @@ function startRecognition(
       return;
     }
 
-    recognitionStarting = false;
     isRecording = true;
 
     setRecordButton(true);
@@ -1606,6 +1711,7 @@ function startRecognition(
       "Saya sedang mendengar..."
     );
   };
+
 
   // ===================================================
   // SPEECH START
@@ -1629,6 +1735,7 @@ function startRecognition(
     );
   };
 
+
   // ===================================================
   // RESULT
   // ===================================================
@@ -1641,8 +1748,10 @@ function startRecognition(
       return;
     }
 
+
     let finalText = "";
     let interimText = "";
+
 
     for (
       let i = event.resultIndex;
@@ -1656,6 +1765,7 @@ function startRecognition(
       const text =
         result[0].transcript;
 
+
       if (result.isFinal) {
 
         finalText +=
@@ -1668,14 +1778,17 @@ function startRecognition(
       }
     }
 
+
     if (finalText) {
 
       finalTranscript +=
         " " + finalText;
     }
 
+
     interimTranscript =
       interimText;
+
 
     const display =
       (
@@ -1685,6 +1798,7 @@ function startRecognition(
       )
         .replace(/\s+/g, " ")
         .trim();
+
 
     if (display) {
 
@@ -1701,6 +1815,7 @@ function startRecognition(
     }
   };
 
+
   // ===================================================
   // ERROR
   // ===================================================
@@ -1713,11 +1828,13 @@ function startRecognition(
       return;
     }
 
+
     if (
       event.error === "aborted"
     ) {
       return;
     }
+
 
     if (
       event.error === "not-allowed" ||
@@ -1731,6 +1848,7 @@ function startRecognition(
       return;
     }
 
+
     if (
       event.error === "no-speech"
     ) {
@@ -1741,6 +1859,7 @@ function startRecognition(
 
       return;
     }
+
 
     if (
       event.error === "audio-capture"
@@ -1753,38 +1872,42 @@ function startRecognition(
       return;
     }
 
+
     setStatus(
       "⚠️ Rakaman terganggu. Cuba sekali lagi."
     );
   };
 
+
   // ===================================================
   // END
   // ===================================================
 
-  r.onend = () => {
+ r.onend = () => {
 
-    if (thisSession !== recognitionSession) return;
-
-    if (recognition === r) {
-      recognition = null;
-    }
-
-    recognitionStarting = false;
-    isRecording = false;
-    setRecordButton(false);
+    // Mic sudah tamat → pulangkan audio iPhone/iPad ke mod media
     setAudioPlaybackMode();
-
-    setMicIndicator(
-      false,
-      "🎤 Mikrofon tidak aktif"
-    );
 
     if (
       thisSession !== recognitionSession
     ) {
       return;
     }
+
+
+    if (recognition === r) {
+      recognition = null;
+    }
+
+
+    isRecording = false;
+    setRecordButton(false);
+
+    setMicIndicator(
+      false,
+      "🎤 Mikrofon tidak aktif"
+    );
+
 
     const heard =
       (
@@ -1795,6 +1918,8 @@ function startRecognition(
         .replace(/\s+/g, " ")
         .trim();
 
+
+    // Ada suara → terus nilai
     if (heard) {
 
       if (!recognitionEvaluated) {
@@ -1811,6 +1936,8 @@ function startRecognition(
       return;
     }
 
+
+    // Tiada suara
     if (!recognitionShouldStop) {
 
       setStatus(
@@ -1819,26 +1946,27 @@ function startRecognition(
     }
   };
 
+
   // ===================================================
   // MULAKAN
   // ===================================================
 
-  try {
+try {
 
-    r.start();
+  r.start();
 
-  } catch (err) {
+} catch (err) {
+
+  setAudioPlaybackMode();
 
     recognition = null;
-    recognitionStarting = false;
     isRecording = false;
+
     setRecordButton(false);
-    setAudioPlaybackMode();
 
     setMicIndicator(
       false,
       "🎤 Mikrofon tidak aktif"
-    
     );
 
     setStatus(
@@ -1847,73 +1975,127 @@ function startRecognition(
   }
 }
 
+
+
+
+
 // =====================================================
 // STOP RECOGNITION
 // =====================================================
 
 function stopRecognition(silent = false) {
+
   const r = recognition;
 
+  // ===================================================
+  // TIADA RECOGNITION YANG SEDANG AKTIF
+  // ===================================================
+
   if (!r) {
-    recognitionStarting = false;
+
     isRecording = false;
+
     setRecordButton(false);
 
     if (silent) {
       finalTranscript = "";
-      interimTranscript = "";
+         interimTranscript = "";
     }
 
     return;
   }
 
+
+  // ===================================================
+  // TUKAR SOALAN / KELUAR MISI
+  // ===================================================
+
   if (silent) {
+
     recognitionShouldStop = true;
     recognitionEvaluated = true;
 
+    /*
+      PENTING UNTUK IPHONE / SAFARI:
+
+      Jangan:
+      - abort()
+      - buang onend
+      - terus recognition = null
+
+      Biarkan WebKit tutup sesi sendiri.
+    */
+
     try {
-      r.abort();
+
+      r.stop();
+
     } catch (e) {
+
       if (recognition === r) {
         recognition = null;
       }
 
-      recognitionStarting = false;
       isRecording = false;
+
       finalTranscript = "";
       interimTranscript = "";
 
       setRecordButton(false);
-      setAudioPlaybackMode();
-      setMicIndicator(false, "🎤 Mikrofon tidak aktif");
+
+      setMicIndicator(
+        false,
+        "🎤 Mikrofon tidak aktif"
+      );
     }
 
     return;
   }
 
+
+  // ===================================================
+  // MURID TEKAN BERHENTI RAKAM
+  // ===================================================
+
   recognitionShouldStop = true;
 
-  setStatus("⏳ Memproses rakaman...");
-  setMicIndicator(false, "⏹️ Rakaman dihentikan");
+  setStatus(
+    "⏳ Memproses rakaman..."
+  );
+
+  setMicIndicator(
+    false,
+    "⏹️ Rakaman dihentikan"
+  );
 
   try {
+
     r.stop();
+
   } catch (e) {
+
     if (recognition === r) {
       recognition = null;
     }
 
-    recognitionStarting = false;
     isRecording = false;
 
     setRecordButton(false);
-    setAudioPlaybackMode();
 
-    const heard = (
-      finalTranscript + " " + interimTranscript
-    ).replace(/\s+/g, " ").trim();
+    const heard =
+      (
+        finalTranscript +
+        " " +
+        interimTranscript
+      )
+        .replace(/\s+/g, " ")
+        .trim();
 
-    if (heard && !recognitionEvaluated) {
+    if (
+      heard &&
+      !recognitionEvaluated
+    ) {
+
       recognitionEvaluated = true;
 
       evaluateVoiceResponse(
@@ -1921,7 +2103,9 @@ function stopRecognition(silent = false) {
         currentVoiceIsCP4,
         currentVoiceIsCP5
       );
+
     } else if (!heard) {
+
       setStatus(
         "🎤 Suara belum dapat dikesan. Tekan MULA RAKAM dan cuba lagi."
       );
@@ -1938,45 +2122,152 @@ function evaluateVoiceResponse(
   isCP4 = false,
   isCP5 = false
 ) {
-  const raw = (
-    finalTranscript + " " + interimTranscript
-  ).trim();
 
-  const spoken = norm(raw);
+  const raw =
+    (
+      finalTranscript +
+      " " +
+      interimTranscript
+    ).trim();
+
+
+  const spoken =
+    norm(raw);
+
+
+  // ===================================================
+  // TIADA SUARA
+  // ===================================================
 
   if (!spoken) {
-    setTranscript("Tiada suara yang dapat dikenal pasti.");
+
+    setTranscript(
+      "Tiada suara yang dapat dikenal pasti."
+    );
+
+
     setStatus(
       "🎤 Suara belum dapat dikesan. Sila cuba rakam sekali lagi."
     );
-    fb("🎤 Cuba rakam sekali lagi.", 0);
+
+
+    fb(
+      "🎤 Cuba rakam sekali lagi.",
+      0
+    );
+
+
     return;
   }
 
-  setTranscript(raw);
 
-  let correct = false;
+  setTranscript(
+    raw
+  );
 
-  if (Array.isArray(d.keywords)) {
-    correct = d.keywords.some(
-      keyword => spoken.includes(norm(keyword))
-    );
-  } else if (Array.isArray(d.any)) {
-    correct = d.any.some(
-      keyword => spoken.includes(norm(keyword))
-    );
-  } else if (Array.isArray(d.all)) {
-    correct = d.all.every(
-      keyword => spoken.includes(norm(keyword))
-    );
+
+  let correct =
+    false;
+
+
+  // ===================================================
+  // MISI 3
+  // Salah satu keyword diterima
+  // ===================================================
+
+  if (
+    Array.isArray(
+      d.keywords
+    )
+  ) {
+
+    correct =
+      d.keywords.some(
+        keyword =>
+          spoken.includes(
+            norm(keyword)
+          )
+      );
+
   }
 
+
+  // ===================================================
+  // MISI 4
+  // Salah satu respons diterima
+  // ===================================================
+
+  else if (
+    Array.isArray(
+      d.any
+    )
+  ) {
+
+    correct =
+      d.any.some(
+        keyword =>
+          spoken.includes(
+            norm(keyword)
+          )
+      );
+
+  }
+
+
+  // ===================================================
+  // MISI 4 SOALAN 3 / MISI 5
+  // Semua keyword perlu ada
+  // ===================================================
+
+  else if (
+    Array.isArray(
+      d.all
+    )
+  ) {
+
+    correct =
+      d.all.every(
+        keyword =>
+          spoken.includes(
+            norm(keyword)
+          )
+      );
+
+  }
+
+
+  // ===================================================
+  // BETUL
+  // ===================================================
+
   if (correct) {
-    setStatus("✅ Respons diterima.");
-    fb(good(), 1);
+
+    setStatus(
+      "✅ Respons diterima."
+    );
+
+
+    fb(
+      good(),
+      1
+    );
+
+
     advance();
-  } else {
-    setStatus("🔄 Cuba berikan respons sekali lagi.");
+
+  }
+
+
+  // ===================================================
+  // SALAH
+  // ===================================================
+
+  else {
+
+    setStatus(
+      "🔄 Cuba berikan respons sekali lagi."
+    );
+
 
     fb(
       isCP5
@@ -1986,69 +2277,127 @@ function evaluateVoiceResponse(
           : "👂 Dengar semula dan cuba jawab sekali lagi.",
       0
     );
+
   }
 }
+
 
 // =====================================================
 // ADVANCE ACTIVITY
 // =====================================================
 
 function advance() {
+
   stopSpeech();
+
   stopRecognition(true);
 
-  const id = game.modalCheckpoint;
+  const id =
+    game.modalCheckpoint;
+
   if (!id) return;
 
+  /*
+    CP4 memberikan 10 markah selepas
+    keseluruhan misi selesai.
+
+    Checkpoint lain memberikan
+    10 markah bagi setiap aktiviti.
+  */
+
   if (id !== 4) {
+
     game.score += 10;
+
     updateHUD();
   }
 
-  window.setTimeout(() => {
-    activityIndex += 1;
+  window.setTimeout(
+    () => {
 
-    if (activityIndex < CP[id].length) {
-      renderActivity(id);
-    } else {
-      completeCP(id);
-    }
-  }, 900);
+      activityIndex += 1;
+
+      if (
+        activityIndex <
+        CP[id].length
+      ) {
+
+        renderActivity(id);
+
+      }
+
+      else {
+
+        completeCP(id);
+
+      }
+    },
+    900
+  );
 }
+
 
 // =====================================================
 // COMPLETE CHECKPOINT
 // =====================================================
 
 function completeCP(id) {
+
   stopSpeech();
 
-  if (id !== 4) {
-    stopRecognition(true);
+  stopRecognition(true);
+
+  if (
+    !game.completedCheckpoints.includes(
+      id
+    )
+  ) {
+
+    game.completedCheckpoints.push(
+      id
+    );
   }
 
-  if (!game.completedCheckpoints.includes(id)) {
-    game.completedCheckpoints.push(id);
-  }
+  /*
+    Misi 4:
+    +10 selepas seluruh misi selesai.
+  */
 
   if (id === 4) {
+
     game.score += 10;
+
   }
 
   if (id < 5) {
-    game.currentCheckpoint = id + 1;
-  } else {
-    game.currentCheckpoint = 6;
+
+    game.currentCheckpoint =
+      id + 1;
+
+  }
+
+  else {
+
+    game.currentCheckpoint =
+      6;
+
   }
 
   updateHUD();
+
   refreshCheckpointGraphics();
 
   activityArea.innerHTML = `
-    <div class="instruction-screen">
-      <div class="instruction-icon">⭐</div>
 
-      <h3>Misi ${id} Selesai!</h3>
+    <div class="instruction-screen">
+
+      <div class="instruction-icon">
+        ⭐
+      </div>
+
+      <h3>
+        Misi ${id} Selesai!
+      </h3>
 
       <p>
         Syabas! Kamu telah berjaya
@@ -2056,279 +2405,37 @@ function completeCP(id) {
       </p>
 
       <div class="activity-actions">
+
         <button
           id="continueMapBtn"
           class="primary-btn"
         >
           🗺️ KEMBALI KE PETA
         </button>
+
       </div>
+
     </div>
   `;
 
   const continueMapBtn =
-    document.querySelector("#continueMapBtn");
+    document.querySelector(
+      "#continueMapBtn"
+    );
 
   continueMapBtn.onclick = () => {
-    modal.classList.add("hidden");
-    game.modalCheckpoint = null;
+
+    modal.classList.add(
+      "hidden"
+    );
+
+    game.modalCheckpoint =
+      null;
 
     handleInteraction();
-
-    if (id === 3) {
-      window.setTimeout(
-        showColorMatchingInterlude,
-        300
-      );
-    }
   };
 }
 
-// =====================================================
-// PERMAINAN SELINGAN 1
-// PADANKAN MENGIKUT WARNA
-// =====================================================
-
-function showColorMatchingInterlude() {
-  // Tiada audio atau mikrofon digunakan.
-
-  const pairs = [
-    {
-      word: "HIJAU",
-      image: "🥑",
-      label: "Avokado hijau"
-    },
-    {
-      word: "MERAH",
-      image: "🍎",
-      label: "Epal merah"
-    },
-    {
-      word: "KUNING",
-      image: "🍋",
-      label: "Lemon kuning"
-    }
-  ];
-
-  const images = [
-    pairs[2],
-    pairs[0],
-    pairs[1]
-  ];
-
-  const matched = new Set();
-  let selectedWord = null;
-
-  const closeBtn =
-    document.querySelector("#closeModal");
-
-  const oldCloseDisplay =
-    closeBtn ? closeBtn.style.display : "";
-
-  modalTitle.textContent = "Permainan Selingan";
-  modal.classList.remove("hidden");
-
-  if (closeBtn) {
-    closeBtn.style.display = "none";
-  }
-
-  activityArea.innerHTML = `
-    <div
-      class="instruction-screen"
-      style="
-        max-width:650px;
-        margin:auto;
-        text-align:center;
-      "
-    >
-      <h3>🎨 PERMAINAN SELINGAN</h3>
-
-      <p style="font-weight:bold;">
-        Padankan Mengikut Warna
-      </p>
-
-      <p>
-        Tekan satu perkataan,
-        kemudian tekan gambar yang sepadan.
-      </p>
-
-      <div
-        style="
-          display:grid;
-          grid-template-columns:1fr 1fr;
-          gap:12px;
-          margin:18px 0;
-        "
-      >
-        <div
-          id="colorWords"
-          style="display:grid;gap:12px;"
-        >
-          ${pairs.map(p => `
-            <button
-              type="button"
-              class="primary-btn color-word"
-              data-word="${p.word}"
-              style="min-height:70px;"
-            >
-              ${p.word}
-            </button>
-          `).join("")}
-        </div>
-
-        <div
-          id="colorImages"
-          style="display:grid;gap:12px;"
-        >
-          ${images.map(p => `
-            <button
-              type="button"
-              class="color-image"
-              data-word="${p.word}"
-              aria-label="${p.label}"
-              style="
-                min-height:70px;
-                font-size:36px;
-                border:2px solid #a9a9a9;
-                border-radius:12px;
-                background:#fff;
-                cursor:pointer;
-              "
-            >
-              ${p.image}
-            </button>
-          `).join("")}
-        </div>
-      </div>
-
-      <p
-        id="colorMatchFeedback"
-        aria-live="polite"
-      >
-        Padankan ketiga-tiga warna.
-      </p>
-    </div>
-  `;
-
-  const feedback =
-    document.querySelector("#colorMatchFeedback");
-
-  const wordButtons = [
-    ...activityArea.querySelectorAll(".color-word")
-  ];
-
-  const imageButtons = [
-    ...activityArea.querySelectorAll(".color-image")
-  ];
-
-  // PILIH PERKATAAN
-
-  wordButtons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (matched.has(btn.dataset.word)) {
-        return;
-      }
-
-      selectedWord = btn.dataset.word;
-
-      wordButtons.forEach(b => {
-        if (!b.disabled) {
-          b.style.outline = "none";
-        }
-      });
-
-      btn.style.outline = "4px solid #ffb703";
-
-      feedback.textContent =
-        `Sekarang pilih gambar untuk ${selectedWord}.`;
-    });
-  });
-
-  // PILIH GAMBAR
-
-  imageButtons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (
-        !selectedWord ||
-        matched.has(btn.dataset.word)
-      ) {
-        if (!selectedWord) {
-          feedback.textContent =
-            "Pilih perkataan dahulu.";
-        }
-
-        return;
-      }
-
-      if (selectedWord !== btn.dataset.word) {
-        feedback.textContent =
-          "Belum tepat. Cuba padankan sekali lagi.";
-        return;
-      }
-
-      matched.add(selectedWord);
-
-      const wordBtn = wordButtons.find(
-        b => b.dataset.word === selectedWord
-      );
-
-      wordBtn.disabled = true;
-      wordBtn.style.outline = "none";
-      wordBtn.style.opacity = "0.5";
-
-      btn.disabled = true;
-      btn.style.background = "#dcfce7";
-      btn.style.borderColor = "#16a34a";
-
-      feedback.textContent =
-        `Bagus! ${matched.size} daripada 3 padanan betul.`;
-
-      selectedWord = null;
-
-      if (matched.size === pairs.length) {
-        activityArea.innerHTML = `
-          <div
-            class="instruction-screen"
-            style="text-align:center;"
-          >
-            <div class="instruction-icon">
-              🌟
-            </div>
-
-            <h3>Tahniah!</h3>
-
-            <p>
-              Sekarang pergi ke Misi 4.
-            </p>
-
-            <div class="activity-actions">
-              <button
-                type="button"
-                id="finishInterludeBtn"
-                class="primary-btn"
-              >
-                🗺️ KEMBALI KE PETA
-              </button>
-            </div>
-          </div>
-        `;
-
-        document
-          .querySelector("#finishInterludeBtn")
-          .onclick = () => {
-            if (closeBtn) {
-              closeBtn.style.display =
-                oldCloseDisplay;
-            }
-
-            modal.classList.add("hidden");
-            modalTitle.textContent = "Misi 4";
-            handleInteraction();
-          };
-      }
-    });
-  });
-}
 
 // =====================================================
 // MOBILE INTERACTION BUTTON
@@ -2337,17 +2444,23 @@ function showColorMatchingInterlude() {
 interactBtn.addEventListener(
   "pointerup",
   event => {
+
     event.preventDefault();
+
     interact();
+
   }
 );
+
 
 // =====================================================
 // RESULT
 // =====================================================
 
 function showResults() {
+
   stopSpeech();
+
   stopRecognition(true);
 
   document
@@ -2357,10 +2470,14 @@ function showResults() {
 
   document
     .querySelector("#resultScore")
-    .textContent = game.score;
+    .textContent =
+      game.score;
 
-  resultModal.classList.remove("hidden");
+  resultModal.classList.remove(
+    "hidden"
+  );
 }
+
 
 document
   .querySelector("#restartBtn")
@@ -2369,6 +2486,7 @@ document
     () => location.reload()
   );
 
+
 document
   .querySelector("#homeBtn")
   .addEventListener(
@@ -2376,11 +2494,16 @@ document
     () => location.reload()
   );
 
+
 // =====================================================
 // KEYBOARD
 // =====================================================
 
-function setKey(key, down) {
+function setKey(
+  key,
+  down
+) {
+
   const allowed = [
     "ArrowUp",
     "ArrowDown",
@@ -2396,268 +2519,514 @@ function setKey(key, down) {
     "D"
   ];
 
-  if (!allowed.includes(key)) {
+  if (
+    !allowed.includes(key)
+  ) {
     return;
   }
 
   down
-    ? keys.add(key.toLowerCase())
-    : keys.delete(key.toLowerCase());
+    ? keys.add(
+        key.toLowerCase()
+      )
+    : keys.delete(
+        key.toLowerCase()
+      );
 }
 
-window.addEventListener("keydown", event => {
-  if (
-    [
-      "ArrowUp",
-      "ArrowDown",
-      "ArrowLeft",
-      "ArrowRight"
-    ].includes(event.key)
-  ) {
-    event.preventDefault();
+
+window.addEventListener(
+  "keydown",
+  event => {
+
+    if (
+      [
+        "ArrowUp",
+        "ArrowDown",
+        "ArrowLeft",
+        "ArrowRight"
+      ].includes(
+        event.key
+      )
+    ) {
+
+      event.preventDefault();
+
+    }
+
+    if (
+      (
+        event.key === "e" ||
+        event.key === "E"
+      ) &&
+      modal.classList.contains(
+        "hidden"
+      ) &&
+      !gameScreen.classList.contains(
+        "hidden"
+      )
+    ) {
+
+      interact();
+
+    }
+
+    setKey(
+      event.key,
+      true
+    );
   }
+);
 
-  if (
-    (
-      event.key === "e" ||
-      event.key === "E"
-    ) &&
-    modal.classList.contains("hidden") &&
-    !gameScreen.classList.contains("hidden")
-  ) {
-    interact();
-  }
 
-  setKey(event.key, true);
-});
+window.addEventListener(
+  "keyup",
+  event =>
 
-window.addEventListener("keyup", event => {
-  setKey(event.key, false);
-});
+    setKey(
+      event.key,
+      false
+    )
+);
+
 
 // =====================================================
 // D-PAD
 // =====================================================
 
 document
-  .querySelectorAll("#dpad button")
+  .querySelectorAll(
+    "#dpad button"
+  )
   .forEach(button => {
+
     const key =
       button.dataset.key.toLowerCase();
 
     const on = event => {
+
       event.preventDefault();
 
       keys.add(key);
-      button.classList.add("pressed");
+
+      button.classList.add(
+        "pressed"
+      );
     };
 
+
     const off = event => {
+
       event.preventDefault();
 
       keys.delete(key);
-      button.classList.remove("pressed");
+
+      button.classList.remove(
+        "pressed"
+      );
     };
 
-    button.addEventListener("pointerdown", on);
-    button.addEventListener("pointerup", off);
-    button.addEventListener("pointercancel", off);
-    button.addEventListener("pointerleave", off);
+
+    button.addEventListener(
+      "pointerdown",
+      on
+    );
+
+
+    button.addEventListener(
+      "pointerup",
+      off
+    );
+
+
+    button.addEventListener(
+      "pointercancel",
+      off
+    );
+
+
+    button.addEventListener(
+      "pointerleave",
+      off
+    );
+
   });
+
 
 // =====================================================
 // PLAYER MOVEMENT
 // =====================================================
 
 function updatePlayer(time) {
+
   if (
-    !modal.classList.contains("hidden") ||
-    !resultModal.classList.contains("hidden")
+    !modal.classList.contains(
+      "hidden"
+    ) ||
+    !resultModal.classList.contains(
+      "hidden"
+    )
   ) {
+
     return;
+
   }
+
 
   let dx = 0;
   let dy = 0;
+
 
   if (
     keys.has("arrowleft") ||
     keys.has("a")
   ) {
+
     dx--;
+
   }
+
 
   if (
     keys.has("arrowright") ||
     keys.has("d")
   ) {
+
     dx++;
+
   }
+
 
   if (
     keys.has("arrowup") ||
     keys.has("w")
   ) {
+
     dy--;
+
   }
+
 
   if (
     keys.has("arrowdown") ||
     keys.has("s")
   ) {
+
     dy++;
+
   }
+
 
   game.player.moving =
-    dx !== 0 || dy !== 0;
+    dx !== 0 ||
+    dy !== 0;
 
-  if (dx && dy) {
+
+  if (
+    dx &&
+    dy
+  ) {
+
     dx *= 0.707;
     dy *= 0.707;
+
   }
+
 
   if (dy > 0) {
-    game.player.direction = "down";
-  } else if (dy < 0) {
-    game.player.direction = "up";
-  } else if (dx < 0) {
-    game.player.direction = "left";
-  } else if (dx > 0) {
-    game.player.direction = "right";
+
+    game.player.direction =
+      "down";
+
   }
 
-  game.player.x = Math.max(
-    70,
-    Math.min(
-      MAP_W - 70,
-      game.player.x + dx * game.player.speed
-    )
-  );
+  else if (dy < 0) {
 
-  game.player.y = Math.max(
-    100,
-    Math.min(
-      MAP_H - 30,
-      game.player.y + dy * game.player.speed
-    )
-  );
+    game.player.direction =
+      "up";
+
+  }
+
+  else if (dx < 0) {
+
+    game.player.direction =
+      "left";
+
+  }
+
+  else if (dx > 0) {
+
+    game.player.direction =
+      "right";
+
+  }
+
+
+  game.player.x =
+    Math.max(
+      70,
+      Math.min(
+        MAP_W - 70,
+        game.player.x +
+          dx *
+          game.player.speed
+      )
+    );
+
+
+  game.player.y =
+    Math.max(
+      100,
+      Math.min(
+        MAP_H - 30,
+        game.player.y +
+          dy *
+          game.player.speed
+      )
+    );
+
 
   if (
     game.player.moving &&
     time - lastAnim > 130
   ) {
-    game.player.frame =
-      (game.player.frame % 4) + 1;
 
-    lastAnim = time;
+    game.player.frame =
+      (
+        game.player.frame %
+        4
+      ) + 1;
+
+    lastAnim =
+      time;
+
   }
 
-  if (game.player.moving) {
+
+  if (
+    game.player.moving
+  ) {
+
     playerSprite.src =
       `assets/player/petara-${game.player.direction}-${game.player.frame || 1}.png`;
-  } else {
-    playerSprite.src =
-      game.player.direction === "down"
-        ? "assets/player/petara-idle.png"
-        : `assets/player/petara-${game.player.direction}-1.png`;
+
   }
 
+  else {
+
+    playerSprite.src =
+      game.player.direction ===
+      "down"
+        ? "assets/player/petara-idle.png"
+        : `assets/player/petara-${game.player.direction}-1.png`;
+
+  }
+
+
   player.style.left =
-    game.player.x + "px";
+    game.player.x +
+    "px";
 
   player.style.top =
-    game.player.y + "px";
+    game.player.y +
+    "px";
 }
+
 
 // =====================================================
 // CAMERA
 // =====================================================
 
 function updateCamera() {
+
   const viewport =
-    document.querySelector("#worldViewport");
+    document.querySelector(
+      "#worldViewport"
+    );
 
-  const vw = viewport.clientWidth;
-  const vh = viewport.clientHeight;
 
-  const scaledW = MAP_W * scale;
-  const scaledH = MAP_H * scale;
+  const vw =
+    viewport.clientWidth;
+
+  const vh =
+    viewport.clientHeight;
+
+
+  const scaledW =
+    MAP_W *
+    scale;
+
+  const scaledH =
+    MAP_H *
+    scale;
+
 
   let tx =
-    vw / 2 - game.player.x * scale;
+    vw / 2 -
+    game.player.x *
+    scale;
+
 
   let ty =
-    vh / 2 - game.player.y * scale;
+    vh / 2 -
+    game.player.y *
+    scale;
 
-  if (scaledW <= vw) {
-    tx = (vw - scaledW) / 2;
-  } else {
-    tx = Math.min(
-      0,
-      Math.max(vw - scaledW, tx)
-    );
+
+  if (
+    scaledW <= vw
+  ) {
+
+    tx =
+      (
+        vw -
+        scaledW
+      ) / 2;
+
   }
 
-  if (scaledH <= vh) {
-    ty = (vh - scaledH) / 2;
-  } else {
-    ty = Math.min(
-      0,
-      Math.max(vh - scaledH, ty)
-    );
+  else {
+
+    tx =
+      Math.min(
+        0,
+        Math.max(
+          vw -
+            scaledW,
+          tx
+        )
+      );
+
   }
+
+
+  if (
+    scaledH <= vh
+  ) {
+
+    ty =
+      (
+        vh -
+        scaledH
+      ) / 2;
+
+  }
+
+  else {
+
+    ty =
+      Math.min(
+        0,
+        Math.max(
+          vh -
+            scaledH,
+          ty
+        )
+      );
+
+  }
+
 
   world.style.transform =
     `translate(${tx}px,${ty}px) scale(${scale})`;
 }
+
 
 // =====================================================
 // RESPONSIVE WORLD
 // =====================================================
 
 function resizeWorld() {
+
   const viewport =
-    document.querySelector("#worldViewport");
+    document.querySelector(
+      "#worldViewport"
+    );
 
-  const vw = viewport.clientWidth;
-  const vh = viewport.clientHeight;
 
-  const cover = Math.max(
-    vw / MAP_W,
-    vh / MAP_H
-  );
+  const vw =
+    viewport.clientWidth;
 
-  const portrait = vh > vw;
-  const minimum = portrait ? 0.7 : 0.6;
+  const vh =
+    viewport.clientHeight;
 
-  scale = Math.max(minimum, cover);
 
-  world.style.width = MAP_W + "px";
-  world.style.height = MAP_H + "px";
+  const cover =
+    Math.max(
+      vw / MAP_W,
+      vh / MAP_H
+    );
+
+
+  const portrait =
+    vh > vw;
+
+
+  const minimum =
+    portrait
+      ? 0.78
+      : (
+          vh <= 600
+            ? 0.68
+            : 0.72
+        );
+
+
+  scale =
+    Math.max(
+      minimum,
+      cover
+    );
+
+
+  world.style.width =
+    MAP_W +
+    "px";
+
+  world.style.height =
+    MAP_H +
+    "px";
+
 
   updateCamera();
 }
 
-window.addEventListener("resize", resizeWorld);
+
+window.addEventListener(
+  "resize",
+  resizeWorld
+);
+
 
 window.addEventListener(
   "orientationchange",
-  () => setTimeout(resizeWorld, 180)
+  () =>
+
+    setTimeout(
+      resizeWorld,
+      180
+    )
 );
+
 
 // =====================================================
 // GAME LOOP
 // =====================================================
 
 function loop(time) {
+
   updatePlayer(time);
+
   updateCamera();
+
   handleInteraction();
 
-  requestAnimationFrame(loop);
+  requestAnimationFrame(
+    loop
+  );
 }
-
 // redeploy
+
 
 
 
